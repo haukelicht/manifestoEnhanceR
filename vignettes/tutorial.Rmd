@@ -21,8 +21,36 @@ knitr::opts_chunk$set(
 )
 ```
 
+In this short tutorial, I show how to use functions provided by the `manifestoEnhanceR` package can be used to convert a large batch of manifesto documents into [XML](https://www.w3schools.com/xml/xml_whatis.asp) documents enriched with document structure (headers, sentences, quasi-sentence nesting) and meta data (e.g, manifesto title or quasi-sentence CMP code).
+
+I use the entire Swiss manifesto corpus and you'll be guided step by step through the process of 
+
+1. querying manifestos from the Manifesto Project API, 
+2. covnerting the `manifestoR` package's custom data objects into a tidy data format (i.e., a data frame), 
+3. enhancing manifesto data frames with text-level information (e.g., quasi-sentence and chapter numbers), and
+4. converting the enhanced manifesto data frames to XML documents.
+
+Before we beginn with this, a short note on why one would want to convert `manifestoR` data object to XML files.
+
+# Background
+
+By enhancing manifesto data frames, we reconstruct a manifestos document structure.
+If you look at a manifesto in its print or online version, it starts with a title, 
+then comes an introduction or summary of key points, following by a number of chapters that comprise many more sentences.
+
+This document structure is not reflected in the way how the Manifesto Project makes its data available.
+While this is not a problem if you are merely interested in their codings, it can be a problem in case you want to use the manifesto test for other puporses, such as topic modeling or for training a word embedding model. 
+For these latter puproses, quasi-sentences are not an ideal unit of (dis)aggregation. Sentences, paragraphs or chapters seem more appropriate.
+
+Now, it turns out while paragraph structure cannot be recovered, we can infer sentences and chapter structure by combining the text of quasi-sentences and their codings. 
+This is the purpose of the `manifestoEnhanceR` package.
+
+# Step 0: Loading required pacakges 
+
 ```{r packages}
+# if not installed: `install.packages("manifestoR")`
 library(manifestoR)
+# if not installed: `devtools::install_github("haukelicht/manifestoEnhanceR)`
 library(manifestoEnhanceR)
 library(dplyr)
 library(tidyr)
@@ -31,10 +59,10 @@ library(xml2)
 library(rvest)
 ```
 
-# Step 1: load manifesto data 
+# Step 1: Load manifesto data 
 
 ```{r set_api_key}
-# set Manifesto Project API key
+# set Manifesto Project API key (see `?mp_setapikey`)
 mp_setapikey(file.path(Sys.getenv("SECRETS_PATH"), "manifesto_apikey.txt")) 
 ```
 
@@ -53,21 +81,28 @@ ch <- mp_corpus(countryname == "Switzerland", cache = TRUE)
 
 ## Conversion to tidy data
 
-```{r as_tibble}
-# this is a 'ManifestoCorpus' object
+The object `ch` is a 'ManifestoCorpus' object, which is essentially a list 'ManifestoDocument' objects with some additional fancy attributes.
+
+
+```{r inspect_ch}
 class(ch)
-# it's a list 'ManifestoDocument' objects
 str(head(ch, 2), 1)
 lapply(head(ch, 2), class)
-
-# we can tidy this up (i.e., convert it to a long tibble)
-man_dfs <- as_tibble(ch)
 ```
 
-Column 'data' is a list column, nesting manifesto tibbles. 
+We can tidy this up (i.e., convert it to a long tibble) by applying the first manifestoEnhanceR function we encounter in this tutorial: `as_tibble.ManifestoCorpus` 
+
+```{r tidy_ch}
+man_dfs <- as_tibble(ch)
+head(man_dfs)
+```
+
+`man_dfs` is a `tibble` (a [fancy dataframe](https://cran.r-project.org/web/packages/tibble/vignettes/tibble.html "{tibble}: Tibbles")) with a [list-column](https://jennybc.github.io/purrr-tutorial/ls13_list-columns.html "{purrr}: List colums") called 'data'.
+For each row, column data contains a manifesto tibble. 
+
+To this manifesto-level tibble, we can left-join manifesto- and party-level data:
 
 ```{r add_meta_data}
-# left join manifesto- and party-level data 
 man_sents <- man_dfs %>% 
   left_join(
     ch_configs %>% 
@@ -78,6 +113,7 @@ man_sents <- man_dfs %>%
 
 # Step 2: Define some test cases
 
+To illustrate the other manifestoEnhanceR functions, we take four manifestos from the above corpus, each with some particular features (as commented below).
 ```{r def_test_cases}
 test1_df <- unnest(filter(man_sents, manifesto_id == "43120_201110"), data)
 test2_df <- unnest(filter(man_sents, manifesto_id == "43110_198710"), data)
@@ -85,9 +121,41 @@ test3_df <- unnest(filter(man_sents, manifesto_id == "43110_199910"), data)
 test4_df <- unnest(filter(man_sents, manifesto_id == "43120_201510"), data)
 ```
 
+- `test2_df` has just one row, and the single cell of column 'text' contains the entire, uncoded text of the manifesto. This is typical for very old manifestos or manifestos of very small parties, where the Manifesto Project team assigned no expert to split the manifesto in quasi-sentences and code it. We say that this manifesto has *not* been 'annotated'.
+- All other test cases have multiple rows. Each row corresponds to one coded quasi sentence. Codes are recorded in column 'cmp_code'.
+- However, in contrast to `test3_df`, `test2_df` and `test_df` have only numerical codes, that is, no 'H' code indicating document headers and titles.
+- But `test3_df` and `test4_df` have both titles, but in the former case which rows hold the manifesto title needs to be inferred from the ordering of text lines.
+
+This sounds confusing? It is. But no worries. Function `enhance_manifesto_df()` handles all these intricacies for you as shown below.
+
 # Step 3: Enhance manifesto data frames
 
+
+`enhance_manifesto_df()` returns a `manifesto.df` object that inherits from the input `tibble`, and simply adds four columns indicating document structure:
+
+- 'qs_nr' (running quasi-sentence counter),
+- 'sent_nr' (running sentence counter),
+- 'role' (indicator, here 'qs' for all rows), and
+- 'bloc_nr' (enumerates consecutive rows by 'role').
+  
+In addition, the returned `manifesto.df` obejct has two additional attributes:
+
+- 'annotated': indicates wehtehr or not the input o has been annotated/coded by CMP experts.
+- 'extra_cols': names of columns added by enhancing the ta frame.
+
 By enhancing manifesto data frames, we add bloc, sentence and quasi-sentence (qs) counters, as well as a role indicators ('qs', 'header', 'title', or 'meta').
+
+As one natrual sentence may contain multiple quasi-sentences, the latter map m:1 to the former.
+A bloc, in turn, is a number of consecutive rolws that all have the same 'role'.
+The following rows are defined:
+
+- 'qs': A quasi-sentence
+- 'title': The manifesto title. This is/are the first row(s) with CMP code 'H' or \code{NA}.
+- 'header': A chapter header. Rows after title (if any) with CMP code 'H' or \code{NA}.
+- 'meta': In annotated manifestos containing 'H' codes (e.g. test case 4), the row(s) between 'title' and the first 'header' rows.
+
+This information is important if you want to count the number of chapters in a manifesto (= No. headers), or print only the title (if exists).
+And as noted above, having at hand this information, one could easily aggregate quasi-sentences at the sentence or chapter level while omitting title and other meta text.
 
 ```{r enhance_test_1}
 test1_res <- enhance_manifesto_df(test1_df)
@@ -120,6 +188,12 @@ attr(test4_res, "annotated")
 ```
 
 # Step 4: Convert manifesto data frames to XML documents
+
+Having enhanced our test case data frames, we can now use `manifesto_df_to_xml()` to convert them to XML.
+You have basically two options 
+
+- setting `parse = FALSE` returns the XML-formatted string
+- setting `parse = TRUE` (the default) returns an {xml2} `xml_document` object.
 
 ```{r xmlify_test_1}
 # test case 1: as string
@@ -165,7 +239,11 @@ test4_xml
 html_node(test4_xml, "title")
 ```
 
-# Step 5: Apply to all manifestos in one pipeline
+As shown in the last code block, you can access the different nodes and attributes of the returned XML documents using {rvest}'s `html_*`.
+
+# Step 5 (optional): Apply to all manifestos in one pipeline
+
+The below code simply combines the above steps in a single pipeline.
 
 ```{r parse_all_manifestos}
 man_xmls <- man_sents %>% 
@@ -187,10 +265,19 @@ man_xmls <- man_sents %>%
     , errors = map(map(value, "error"), "message")
     , n_errors = lengths(errors)
   )
+```
 
+Calling this code returns a tibble with list-column 'xml' containing the individual manifesto XML documents.
+
+
+```{r inspect_all}
 # the returned tibble contains xml_documents in the 'xml' list-column
 head(man_xmls, 3)
+```
 
+To make sure that all covnersions were successful, you can look at column 'n_errors':
+
+```{r inspect_errors}
 # there were no errors raised
 man_xmls %>% 
   filter(n_errors > 0) %>% 
@@ -198,6 +285,8 @@ man_xmls %>%
 ```
 
 # Step 6 (optional): write manifestos to disk
+
+You can alos loop over XML documents and write them to disk.
 
 ```{r write_to_disk, eval=FALSE}
 # write to disk
