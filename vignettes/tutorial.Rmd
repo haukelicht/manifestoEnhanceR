@@ -1,0 +1,212 @@
+---
+title: "Enhancing {manifestoR} data objects: A short tutorial using the Swiss manifesto corpus."
+author: "Hauke Licht"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Short tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE
+  , eval = TRUE
+  , warning = FALSE
+  , message = FALSE
+  , cache = FALSE
+  , fig.align = 'center'
+  , fig.height = 4
+  , fig.width = 8
+)
+```
+
+```{r packages}
+library(manifestoR)
+library(manifestoEnhanceR)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(xml2)
+library(rvest)
+```
+
+# Step 1: load manifesto data 
+
+```{r set_api_key}
+# set Manifesto Project API key
+mp_setapikey(file.path(Sys.getenv("SECRETS_PATH"), "manifesto_apikey.txt")) 
+```
+
+```{r get_cmp_data}
+# get CMP party-year data
+cmp <- mp_maindataset(south_america = FALSE)
+
+# subset to Swiss configurations
+ch_configs <- cmp %>% 
+  filter(countryname == "Switzerland") %>% 
+  select(1:10)
+
+# get Swiss manifestos
+ch <- mp_corpus(countryname == "Switzerland", cache = TRUE)
+```
+
+## Conversion to tidy data
+
+```{r as_tibble}
+# this is a 'ManifestoCorpus' object
+class(ch)
+# it's a list 'ManifestoDocument' objects
+str(head(ch, 2), 1)
+lapply(head(ch, 2), class)
+
+# we can tidy this up (i.e., convert it to a long tibble)
+man_dfs <- as_tibble(ch)
+```
+
+Column 'data' is a list column, nesting manifesto tibbles. 
+
+```{r add_meta_data}
+# left join manifesto- and party-level data 
+man_sents <- man_dfs %>% 
+  left_join(
+    ch_configs %>% 
+      transmute(manifesto_id = paste0(party, "_", date), party, partyname, partyabbrev) %>% 
+      unique()
+  )
+```
+
+# Step 2: Define some test cases
+
+```{r def_test_cases}
+test1_df <- unnest(filter(man_sents, manifesto_id == "43120_201110"), data)
+test2_df <- unnest(filter(man_sents, manifesto_id == "43110_198710"), data)
+test3_df <- unnest(filter(man_sents, manifesto_id == "43110_199910"), data)
+test4_df <- unnest(filter(man_sents, manifesto_id == "43120_201510"), data)
+```
+
+# Step 3: Enhance manifesto data frames
+
+By enhancing manifesto data frames, we add bloc, sentence and quasi-sentence (qs) counters, as well as a role indicators ('qs', 'header', 'title', or 'meta').
+
+```{r enhance_test_1}
+test1_res <- enhance_manifesto_df(test1_df)
+select(test1_res, 1:4, 17:25)
+class(test1_res)
+attr(test1_res, "annotated")
+attr(test1_res, "extra_cols")
+"title" %in% test1_res$role
+```
+
+```{r enhance_test_2}
+test2_res <- enhance_manifesto_df(test2_df)
+select(test2_res, 1:4, 17:25)
+class(test2_res)
+attr(test2_res, "annotated")
+```
+
+```{r enhance_test_3}
+test3_res <- enhance_manifesto_df(test3_df)
+class(test3_res)
+attr(test3_res, "annotated")
+"title" %in% test3_res$role
+```
+
+```{r enhance_test_4}
+test4_res <- enhance_manifesto_df(test4_df)
+class(test4_res)
+attr(test4_res, "annotated")
+"title" %in% test4_res$role
+```
+
+# Step 4: Convert manifesto data frames to XML documents
+
+```{r xmlify_test_1}
+# test case 1: as string
+test1_xml <- manifesto_df_to_xml(test1_res, parse = FALSE)
+class(test1_xml)
+length(test1_xml)
+test1_xml <- manifesto_df_to_xml(filter(test1_res, bloc_nr < 3), parse = FALSE)
+# cat(test1_xml)
+
+# as XML document
+test1_xml <- manifesto_df_to_xml(test1_res)
+test1_xml <- manifesto_df_to_xml(man.df = filter(test1_res, bloc_nr %in% 9:9))
+class(test1_xml)
+test1_xml
+```
+
+```{r xmlify_test_2}
+# test case 2
+test2_xml <- manifesto_df_to_xml(test2_res, parse = FALSE)
+cat(test2_xml)
+test2_xml <- manifesto_df_to_xml(test2_res)
+class(test2_xml)
+test2_xml
+```
+
+```{r xmlify_test_3}
+# test case 3
+test3_xml <- manifesto_df_to_xml(man.df = test3_res, parse = FALSE)
+class(test3_xml); length(test3_xml)
+test3_xml <- manifesto_df_to_xml(test3_res)
+class(test3_xml)
+test3_xml
+html_node(test3_xml, "title")
+```
+
+```{r xmlify_test_4}
+# test case 4
+test4_xml <- manifesto_df_to_xml(man.df = test4_res, parse = FALSE)
+class(test4_xml); length(test4_xml)
+test4_xml <- manifesto_df_to_xml(test4_res)
+class(test4_xml)
+test4_xml
+html_node(test4_xml, "title")
+```
+
+# Step 5: Apply to all manifestos in one pipeline
+
+```{r parse_all_manifestos}
+man_xmls <- man_sents %>% 
+  # drop unneccessary columns
+  select(-has_eu_code, -may_contradict_core_dataset, -md5sum_text, -md5sum_original, -annotations, -id) %>% 
+  # unnest data
+  unnest(data) %>% 
+  # split by manifesto ID (-> list od DFs)
+  split(.$manifesto_id) %>% 
+  # apply enhance
+  map(enhance_manifesto_df) %>% 
+  # apply converter
+  map(safely(manifesto_df_to_xml)) %>% 
+  # gather all in list-column data frame 
+  enframe() %>% 
+  transmute(
+    manifesto_id = name
+    , xml = map(value, "result")
+    , errors = map(map(value, "error"), "message")
+    , n_errors = lengths(errors)
+  )
+
+# the returned tibble contains xml_documents in the 'xml' list-column
+head(man_xmls, 3)
+
+# there were no errors raised
+man_xmls %>% 
+  filter(n_errors > 0) %>% 
+  unnest(errors)
+```
+
+# Step 6 (optional): write manifestos to disk
+
+```{r , eval=FALSE}
+# write to disk
+map2(
+  man_xmls$xml
+  , man_xmls$manifesto_id
+  , function(xml, id, path = file.path("your", "local", "path")) {
+  write_xml(xml, file.path(path, paste0(id, ".xml")))  
+})
+```
+

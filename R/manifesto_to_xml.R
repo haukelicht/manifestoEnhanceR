@@ -76,7 +76,7 @@ xmlify_chapter_ <- function(x, chap.nr) {
 #'     'p' nodes wrap title lines.
 xmlify_head_ <- function(x, title = NULL) {
 
-  req <- c("manifesto_id", "party", "partyname", "partyabbrev", "language", "annotated")
+  req <- c("manifesto_id", "language")
   if (!is.list(x) || !all(req %in% names(x)))
     stop("`x` must be a data frame/list containing columns/having elements ", paste(sQuote(req), collapse = ", "))
 
