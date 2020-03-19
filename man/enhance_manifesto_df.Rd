@@ -43,7 +43,7 @@ As one natrual sentence may contain multiple quasi-sentences, the latter map m:1
      }
 }
 \examples{
-
+\dontrun{
 library(tibble)
 library(manifestoEnhanceR)
 
@@ -56,7 +56,7 @@ man <- tribble(
   "123", "This is the first full sentence.", "000",
   "123", "This is the second,", "000",
   "123", "but splitted sentence.", "000",
-  "123", "second section", "H"
+  "123", "second section", "H",
   "123", "This is the third sentence.", "000"
 )
 
@@ -66,4 +66,5 @@ nrow(man) == nrow(enhanced)
 ncol(man) < ncol(enhanced)
 attr(enhanced, "annotated")
 attr(enhanced, "extra_cols")
+}
 }

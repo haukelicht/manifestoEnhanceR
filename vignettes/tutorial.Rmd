@@ -15,7 +15,6 @@ knitr::opts_chunk$set(
   , eval = TRUE
   , warning = FALSE
   , message = FALSE
-  , cache = FALSE
   , fig.align = 'center'
   , fig.height = 4
   , fig.width = 8
@@ -200,7 +199,7 @@ man_xmls %>%
 
 # Step 6 (optional): write manifestos to disk
 
-```{r , eval=FALSE}
+```{r write_to_disk, eval=FALSE}
 # write to disk
 map2(
   man_xmls$xml

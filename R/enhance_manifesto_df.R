@@ -83,9 +83,10 @@ enhance_meta_df_ <- function(meta.df) {
 #'      'role' is 'qs' and bloc_nr is 1 for all rows.
 #'
 #' @import dplyr
+#' @importFrom stringi stri_split_boundaries stri_opts_brkiter
 enhance_uncoded_manifesto_ <- function(u.df) {
 
-  sents <- stringi::stri_split_boundaries(u.df$text, opts_brkiter = stringi::stri_opts_brkiter("sentence"))
+  sents <- stri_split_boundaries(u.df$text, opts_brkiter = stri_opts_brkiter("sentence"))
   sents <- unlist(sents)
   nrs <- seq_along(sents)
 
@@ -140,7 +141,7 @@ enhance_uncoded_manifesto_ <- function(u.df) {
 #' @export
 #'
 #' @examples
-#'
+#' \dontrun{
 #' library(tibble)
 #' library(manifestoEnhanceR)
 #'
@@ -153,7 +154,7 @@ enhance_uncoded_manifesto_ <- function(u.df) {
 #'   "123", "This is the first full sentence.", "000",
 #'   "123", "This is the second,", "000",
 #'   "123", "but splitted sentence.", "000",
-#'   "123", "second section", "H"
+#'   "123", "second section", "H",
 #'   "123", "This is the third sentence.", "000"
 #' )
 #'
@@ -163,6 +164,7 @@ enhance_uncoded_manifesto_ <- function(u.df) {
 #' ncol(man) < ncol(enhanced)
 #' attr(enhanced, "annotated")
 #' attr(enhanced, "extra_cols")
+#' }
 enhance_manifesto_df <- function(x) {
 
   # fallback case: all manifesto data in one line (often the case for old, non-annotated manifestos)

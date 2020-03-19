@@ -8,9 +8,9 @@ manifesto_df_to_xml(man.df, parse = TRUE, .xml.encode = c("&", "<",
   ">", "#", "\\""))
 }
 \arguments{
-\item{man.df}{A \code{manifesto.df} object (see \code{\link{enhance_manfiesto_df}}).}
+\item{man.df}{A \code{manifesto.df} object (see \code{\link{enhance_manifesto_df}}).}
 
-\item{parse}{logical. If \code{TRUE} (the default), a \code{\link[xml2]{xm_document}} is returned.
+\item{parse}{logical. If \code{TRUE} (the default), a \code{xml2} \code{xml_document} is returned.
 Otherwise, an XML-formatted, unit-length character vector}
 
 \item{.xml.encode}{character vector specifying plain text special characters to be converted to XML-compatible encoded.
@@ -19,16 +19,16 @@ Defaults to '&', '<', '>', '#' and '"'.
 Ignored if \code{NULL}.}
 }
 \value{
-A \code{\link[xml2]{xm_document}} with parent node 'manifesto',
+A \code{xml2} \code{xml_document} with parent node 'manifesto',
     or an XML-formatted string if \code{parse = FALSE}.
 }
 \description{
 Function takes \code{manifesto.df} and outputs
     either an XML-formatted string
-    or, if \code{parse = TRUE} (the default), a \code{\link[xml2]{xm_document}}.
+    or, if \code{parse = TRUE} (the default), a \code{xml2} \code{xml_document}.
 }
 \examples{
-
+\dontrun{
 library(tibble)
 library(manifestoEnhanceR)
 library(xml2)
@@ -42,7 +42,7 @@ man <- tribble(
   "123", "Bloc Party", "This is the first full sentence.", "000",
   "123", "Bloc Party", "This is the second,", "000",
   "123", "Bloc Party", "but splitted sentence.", "000",
-  "123", "Bloc Party", "second section", "H"
+  "123", "Bloc Party", "second section", "H",
   "123", "Bloc Party", "This is the third sentence.", "000"
 )
 
@@ -54,6 +54,7 @@ xml_attrs(xml)
 xml_string <- manifesto_df_to_xml(enhanced, parse = FALSE)
 length(xml_string)
 cat(xml_string)
+}
 }
 \seealso{
 \code{\link{enhance_manifesto_df}}

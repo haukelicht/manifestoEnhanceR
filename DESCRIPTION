@@ -12,5 +12,16 @@ LazyData: true
 RoxygenNote: 6.1.1
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    manifestoR,
+    rvest
+Imports:
+    dplyr,
+    purrr,
+    stringi,
+    stringr,
+    tidyr,
+    textutils,
+    tibble,
+    xml2
 VignetteBuilder: knitr

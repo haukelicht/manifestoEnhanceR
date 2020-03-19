@@ -130,13 +130,13 @@ combine_head_and_body_ <- function(head, body) {
 #'
 #' @description Function takes \code{manifesto.df} and outputs
 #'     either an XML-formatted string
-#'     or, if \code{parse = TRUE} (the default), a \code{\link[xml2]{xm_document}}.
+#'     or, if \code{parse = TRUE} (the default), a \code{xml2} \code{xml_document}.
 #'
 #' @seealso \code{\link{enhance_manifesto_df}}
 #'
-#' @param man.df A \code{manifesto.df} object (see \code{\link{enhance_manfiesto_df}}).
+#' @param man.df A \code{manifesto.df} object (see \code{\link{enhance_manifesto_df}}).
 #'
-#' @param parse logical. If \code{TRUE} (the default), a \code{\link[xml2]{xm_document}} is returned.
+#' @param parse logical. If \code{TRUE} (the default), a \code{xml2} \code{xml_document} is returned.
 #'     Otherwise, an XML-formatted, unit-length character vector
 #'
 #' @param .xml.encode character vector specifying plain text special characters to be converted to XML-compatible encoded.
@@ -144,7 +144,7 @@ combine_head_and_body_ <- function(head, body) {
 #'     Defaults to '&', '<', '>', '#' and '"'.
 #'     Ignored if \code{NULL}.
 #'
-#' @return A \code{\link[xml2]{xm_document}} with parent node 'manifesto',
+#' @return A \code{xml2} \code{xml_document} with parent node 'manifesto',
 #'     or an XML-formatted string if \code{parse = FALSE}.
 #'
 #' @importFrom textutils HTMLencode
@@ -157,7 +157,7 @@ combine_head_and_body_ <- function(head, body) {
 #' @export
 #'
 #' @examples
-#'
+#' \dontrun{
 #' library(tibble)
 #' library(manifestoEnhanceR)
 #' library(xml2)
@@ -171,7 +171,7 @@ combine_head_and_body_ <- function(head, body) {
 #'   "123", "Bloc Party", "This is the first full sentence.", "000",
 #'   "123", "Bloc Party", "This is the second,", "000",
 #'   "123", "Bloc Party", "but splitted sentence.", "000",
-#'   "123", "Bloc Party", "second section", "H"
+#'   "123", "Bloc Party", "second section", "H",
 #'   "123", "Bloc Party", "This is the third sentence.", "000"
 #' )
 #'
@@ -183,6 +183,7 @@ combine_head_and_body_ <- function(head, body) {
 #' xml_string <- manifesto_df_to_xml(enhanced, parse = FALSE)
 #' length(xml_string)
 #' cat(xml_string)
+#' }
 manifesto_df_to_xml <- function(man.df, parse = TRUE, .xml.encode = c("&", "<", ">", "#", '"')) {
   err_msg <- "Could not create XML from manifesto data frame."
 
