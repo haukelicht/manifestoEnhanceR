@@ -1,0 +1,12 @@
+Package: manifestoEnhanceR
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.0.0100
+Authors@R: person("Hauke", "Licht", email = "hauke.licht@uzh.ch", role = c("aut", "cre"))
+Description: The {manifestoEnhanceR} package implements functionality to enhance {manifestoR} data.
+    This includes functions to convert manifestoR data obejcts to tidy data frames,
+    and a function to convet tidy manifesto data frames to XML documents.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.1.1
