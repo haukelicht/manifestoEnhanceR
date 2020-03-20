@@ -93,13 +93,13 @@ xmlify_head_ <- function(x, title = NULL) {
     , names(x)
     , function(e, nm) {
       if (is.na(e) || e == "") return("")
-      sprintf(' %s="%s"', gsub("[^[:alnum:]]+", "-", nm), e)
+      sprintf('\n     %s="%s"', gsub("[^[:alnum:]]+", "-", nm), e)
     })
 
   out <- paste0(
     "\n  <head"
     , paste0(attrs, collapse = "")
-    , ">"
+    , ifelse(length(attr) > 0, "\n  >", ">")
     , title
     , ifelse(length(title) == 0 | is.null(title), "</head>", "\n  </head>")
   )
@@ -138,6 +138,10 @@ combine_head_and_body_ <- function(head, body) {
 #'
 #' @param parse logical. If \code{TRUE} (the default), a \code{xml2} \code{xml_document} is returned.
 #'     Otherwise, an XML-formatted, unit-length character vector
+#'
+#' @param .cols.head.exclude character vector specifying columns in \code{man.df} to be omitted when determining
+#'     XML head node attributes.
+#'     Defaults to 'text', 'cmp_code', 'eu_code', 'qs_nr', 'sent_nr', 'bloc_nr', and 'role'.
 #'
 #' @param .xml.encode character vector specifying plain text special characters to be converted to XML-compatible encoded.
 #'     Conversion is performed by \code{\link[textutils]{HTMLencode}}.
@@ -184,13 +188,18 @@ combine_head_and_body_ <- function(head, body) {
 #' length(xml_string)
 #' cat(xml_string)
 #' }
-manifesto_df_to_xml <- function(man.df, parse = TRUE, .xml.encode = c("&", "<", ">", "#", '"')) {
+manifesto_df_to_xml <- function(
+  man.df
+  , parse = TRUE
+  , .cols.head.exclude = c("text", "cmp_code", "eu_code", "qs_nr", "sent_nr", "bloc_nr", "role")
+  , .xml.encode = c("&", "<", ">", "#", '"')
+) {
+
   err_msg <- "Could not create XML from manifesto data frame."
 
   is_enhanced <- attr(man.df, "enhanced")
   if (!is.null(.xml.encode) && is.character(.xml.encode) && length(.xml.encode) > 0)
     man.df <- mutate(man.df, text = str_replace_all(text, fixed(setNames(tolower(map_chr(.xml.encode, HTMLencode)), .xml.encode))))
-
 
   # split into blocs
   blocs <- split(man.df, man.df$bloc_nr)
@@ -246,8 +255,9 @@ manifesto_df_to_xml <- function(man.df, parse = TRUE, .xml.encode = c("&", "<", 
     filter(role == "title") %>%
     .$value
 
-  first_row <- man.df[1, setdiff(names(man.df), attr(man.df, "extra_cols"))]
-  first_row$text <- NULL
+  first_row <- man.df[1, setdiff(names(man.df), c(attr(man.df, "extra_cols"), .cols.head.exclude))]
+  if ("text" %in% names(first_row))
+    first_row$text <- NULL
 
   head <- tryCatch(xmlify_head_(c(first_row, annotated = is_enhanced), title), error = function(err) err)
 

@@ -4,14 +4,20 @@
 \alias{manifesto_df_to_xml}
 \title{Convert manifesto to XML}
 \usage{
-manifesto_df_to_xml(man.df, parse = TRUE, .xml.encode = c("&", "<",
-  ">", "#", "\\""))
+manifesto_df_to_xml(man.df, parse = TRUE,
+  .cols.head.exclude = c("text", "cmp_code", "eu_code", "qs_nr",
+  "sent_nr", "bloc_nr", "role"), .xml.encode = c("&", "<", ">", "#",
+  "\\""))
 }
 \arguments{
 \item{man.df}{A \code{manifesto.df} object (see \code{\link{enhance_manifesto_df}}).}
 
 \item{parse}{logical. If \code{TRUE} (the default), a \code{xml2} \code{xml_document} is returned.
 Otherwise, an XML-formatted, unit-length character vector}
+
+\item{.cols.head.exclude}{character vector specifying columns in \code{man.df} to be omitted when determining
+XML head node attributes.
+Defaults to 'text', 'cmp_code', 'eu_code', 'qs_nr', 'sent_nr', 'bloc_nr', and 'role'.}
 
 \item{.xml.encode}{character vector specifying plain text special characters to be converted to XML-compatible encoded.
 Conversion is performed by \code{\link[textutils]{HTMLencode}}.
